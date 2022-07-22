@@ -54,7 +54,7 @@ The distributions of each attribute. CelebV-HQ has a diverse distribution on eac
 
 Prepare the environment: 
 ```bash
-pip install youtube_dl
+pip install yt-dlp
 pip install opencv-python
 ```
 
