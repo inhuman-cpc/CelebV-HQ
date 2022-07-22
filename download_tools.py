@@ -3,7 +3,7 @@ import os
 import json
 
 
-def download(ytb_id, save_folder, proxy=None):
+def download(video_path, proxy=None):
     """
     ytb_id: youtube_id
     save_folder: save video folder
@@ -13,10 +13,9 @@ def download(ytb_id, save_folder, proxy=None):
         proxy_cmd = "--proxy {}".format(proxy)
     else:
         proxy_cmd = ""
-    video_path = os.path.join(save_folder, ytb_id + ".mp4")
     if not os.path.exists(video_path):
         down_video = " ".join([
-            "youtube-dl",
+            "yt-dlp",
             proxy_cmd,
             '-f', "'bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio'",
             '--skip-unavailable-fragments',
@@ -27,8 +26,6 @@ def download(ytb_id, save_folder, proxy=None):
         ])
         print(down_video)
         os.system(down_video)
-
-    return video_path
 
 
 def process_ffmpeg(raw_vid_path, save_folder, save_vid_name,
@@ -99,7 +96,6 @@ def load_data(file_path):
         ytb_id = val['ytb_id']
         time = val['duration']['start_sec'], val['duration']['end_sec']
 
-        print(ytb_id)
         bbox = [val['bbox']['top'], val['bbox']['bottom'], val['bbox']['left'], val['bbox']['right']]
         yield ytb_id, save_name, time, bbox
 
@@ -110,11 +106,14 @@ if __name__ == '__main__':
     raw_vid_root = './downloaded_celebvhq/raw/' # download raw video path
     processed_vid_root = './downloaded_celebvhq/processed/' # processed video path
 
-    proxy = "http://172.16.1.135:3128/" # proxy url example, set to None if not use 
+    proxy = None # proxy url example, set to None if not use 
 
     os.makedirs(raw_vid_root, exist_ok=True)
     os.makedirs(processed_vid_root, exist_ok=True)
 
     for vid_id, save_vid_name, time, bbox in load_data(json_path):
-        raw_vid_path = download(vid_id, raw_vid_root, proxy)
+        raw_vid_path = os.path.join(raw_vid_root, vid_id + ".mp4")
+        # Since download action is io bounded, process action is cpu bounded,
+        # it is better to download videos firstly and process via mutiple cpu cores.
+        download(raw_vid_path, proxy)
         process_ffmpeg(raw_vid_path, processed_vid_root, save_vid_name, bbox, time)
