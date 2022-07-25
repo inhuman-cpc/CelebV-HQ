@@ -1,9 +1,13 @@
-import cv2
+"""
+Downloader
+"""
+
 import os
 import json
+import cv2
 
 
-def download(video_path, proxy=None):
+def download(video_path, ytb_id, proxy=None):
     """
     ytb_id: youtube_id
     save_folder: save video folder
@@ -25,15 +29,17 @@ def download(video_path, proxy=None):
             "--external-downloader-args", '"-x 16 -k 1M"'
         ])
         print(down_video)
-        os.system(down_video)
+        status = os.system(down_video)
+        if status != 0:
+            print(f"video not found: {ytb_id}")
 
 
 def process_ffmpeg(raw_vid_path, save_folder, save_vid_name,
                    bbox, time):
     """
-    raw_vid_path: 
-    save_folder: 
-    save_vid_name: 
+    raw_vid_path:
+    save_folder:
+    save_vid_name:
     bbox: format: top, bottom, left, right. the values are normalized to 0~1
     time: begin_sec, end_sec
     """
@@ -96,24 +102,29 @@ def load_data(file_path):
         ytb_id = val['ytb_id']
         time = val['duration']['start_sec'], val['duration']['end_sec']
 
-        bbox = [val['bbox']['top'], val['bbox']['bottom'], val['bbox']['left'], val['bbox']['right']]
+        bbox = [val['bbox']['top'], val['bbox']['bottom'],
+                val['bbox']['left'], val['bbox']['right']]
         yield ytb_id, save_name, time, bbox
 
 
 if __name__ == '__main__':
-    json_path = 'celebvhq_35666.json' # json file path 
-
-    raw_vid_root = './downloaded_celebvhq/raw/' # download raw video path
-    processed_vid_root = './downloaded_celebvhq/processed/' # processed video path
-
-    proxy = None # proxy url example, set to None if not use 
+    json_path = 'celebvhq_35666.json'  # json file path
+    raw_vid_root = './downloaded_celebvhq/raw/'  # download raw video path
+    processed_vid_root = './downloaded_celebvhq/processed/'  # processed video path
+    proxy = None  # proxy url example, set to None if not use
 
     os.makedirs(raw_vid_root, exist_ok=True)
     os.makedirs(processed_vid_root, exist_ok=True)
 
     for vid_id, save_vid_name, time, bbox in load_data(json_path):
         raw_vid_path = os.path.join(raw_vid_root, vid_id + ".mp4")
-        # Since download action is io bounded, process action is cpu bounded,
-        # it is better to download videos firstly and process via mutiple cpu cores.
-        download(raw_vid_path, proxy)
-        process_ffmpeg(raw_vid_path, processed_vid_root, save_vid_name, bbox, time)
+        # Downloading is io bounded and processing is cpu bounded.
+        # It is better to download all videos firstly and then process them via mutiple cpu cores.
+        download(raw_vid_path, vid_id, proxy)
+        # process_ffmpeg(raw_vid_path, processed_vid_root, save_vid_name, bbox, time)
+
+    # with open('./ytb_id_errored.log', 'r') as f:
+    #     lines = f.readlines()
+    # for line in lines:
+    #     raw_vid_path = os.path.join(raw_vid_root, line + ".mp4")
+    #     download(raw_vid_path, line)
